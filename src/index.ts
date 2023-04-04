@@ -1,1 +1,2 @@
-export { InitializeLoot } from "./server/loot";
+export { InitializeLootServer, CreateLootForPlayer } from "./server/loot";
+export { InitializeLootClient } from "./client/loot";
