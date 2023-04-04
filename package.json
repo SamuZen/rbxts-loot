@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@rbxts/beacon": "^2.0.0",
+    "@rbxts/class-cache": "^1.0.4",
     "@rbxts/net": "^3.0.6"
   }
 }
