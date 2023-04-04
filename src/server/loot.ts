@@ -20,7 +20,7 @@ let initialized = false;
 const playerToLootIdMap = new Map<Player, Array<string>>();
 const lootIdToLootDataMap = new Map<string, Lootable>();
 
-export function InitializeLoot() {
+export function InitializeLootServer() {
 	assert(RunService.IsServer(), "InitializeLoot() should only be called on the server!");
 	assert(!initialized, "InitializeLoot() should only be called once!");
 
@@ -72,7 +72,7 @@ function OnLootCollected(player: Player, loot: Lootable) {
 	});
 }
 
-function CreateLootForPlayer(player: Player, loot: Lootable, position: Vector3) {
+export function CreateLootForPlayer(player: Player, loot: Lootable, position: Vector3) {
 	const id = GenerateUniqueId();
 
 	const creationData: LootCreationData = {
