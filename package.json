@@ -1,5 +1,5 @@
 {
-  "name": "@rbxts/rbxts-loot",
+  "name": "@rbxts/loot",
   "version": "1.0.0",
   "description": "",
   "main": "out/init.lua",
@@ -7,6 +7,10 @@
     "build": "rbxtsc",
     "watch": "rbxtsc -w",
     "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SamuZen/rbxts-loot"
   },
   "keywords": [],
   "author": "",
