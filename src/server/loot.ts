@@ -10,6 +10,8 @@ const Players = game.GetService("Players");
 
 let lootServerInstance: LootServer | undefined = undefined;
 
+const initializedEvent: BindableEvent = new Instance("BindableEvent");
+
 class LootServer {
 	CreateLoot = Remotes.Server.Get(NetRemoteNames.CreateLoot);
 	CollectedLoot = Remotes.Server.Get(NetRemoteNames.CollectedLoot);
@@ -50,7 +52,10 @@ class LootServer {
 		}
 
 		// do something with the loot data
-		this.OnLootCollected(player, lootData);
+		this.LootCollectedSignal.Fire({
+			player,
+			loot: lootData,
+		});
 
 		// remove the id from the player's loot ids
 		this.playerToLootIdMap.set(
@@ -62,11 +67,8 @@ class LootServer {
 		this.lootIdToLootDataMap.delete(lootId);
 	}
 
-	OnLootCollected(player: Player, loot: Lootable) {
-		this.LootCollectedSignal.Fire({
-			player,
-			loot,
-		});
+	RegisterToLootCollected(callback: (data: LootCollectedAlertData) => void) {
+		return this.LootCollectedSignal.Connect(callback);
 	}
 
 	CreateLootForPlayer(player: Player, loot: Lootable, position: Vector3) {
@@ -95,6 +97,7 @@ export function InitializeLootServer() {
 	assert(!lootServerInstance, "InitializeLoot() should only be called once!");
 
 	lootServerInstance = new LootServer();
+	initializedEvent.Fire();
 }
 
 export function CreateLootForPlayer(player: Player, loot: Lootable, position: Vector3) {
@@ -102,4 +105,13 @@ export function CreateLootForPlayer(player: Player, loot: Lootable, position: Ve
 	assert(lootServerInstance, "InitializeLoot() should be called before CreateLootForPlayer()!");
 
 	lootServerInstance.CreateLootForPlayer(player, loot, position);
+}
+
+export function RegisterToLootCollected(callback: (data: LootCollectedAlertData) => void) {
+	assert(RunService.IsServer(), "RegisterToLootCollected() should only be called on the server!");
+	if (!lootServerInstance) {
+		initializedEvent.Event.Wait();
+	}
+	assert(lootServerInstance, "Failed to initialize loot server!");
+	return lootServerInstance.RegisterToLootCollected(callback);
 }
