@@ -48,6 +48,7 @@ export class LootMagnetic extends Cachable implements ISpriteLoot {
 
 	setup(lootData: Lootable): void {
 		this.handle.Name = lootData.id;
+		this.iconLabel.Image = lootData.icon;
 	}
 
 	spawn(position: Vector3): void {
