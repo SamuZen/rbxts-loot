@@ -15,14 +15,18 @@ class LootClient {
 	createdLoots = new Map<BasePart, LootInstanceData>();
 
 	constructor(collectorSize: number) {
-		this.initialize();
+		this.initialize(collectorSize);
 	}
 
-	initialize() {
-		const collectorPart = CreateCollectorPart(10);
-		collectorPart.Touched.Connect(this.onCollectorTouched);
+	initialize(collectorSize: number) {
+		const collectorPart = CreateCollectorPart(collectorSize);
+		collectorPart.Touched.Connect((part: BasePart) => {
+			this.onCollectorTouched(part);
+		});
 
-		this.CreateLoot.Connect(this.onCreateLoot);
+		this.CreateLoot.Connect((data: LootCreationData) => {
+			this.onCreateLoot(data);
+		});
 	}
 
 	onCollectorTouched(part: BasePart) {
@@ -68,10 +72,10 @@ class LootClient {
 	}
 }
 
-export function InitializeLootClient() {
+export function InitializeLootClient(rangeSize: number) {
 	assert(RunService.IsClient(), "InitializeLoot() should only be called on the client!");
 
 	if (lootClientInstance === undefined) {
-		lootClientInstance = new LootClient(10);
+		lootClientInstance = new LootClient(rangeSize);
 	}
 }

@@ -23,7 +23,9 @@ class LootServer {
 	constructor() {
 		SetCollisionGroups();
 		this.HandlePlayerMap();
-		this.CollectedLoot.Connect(this.OnPlayerCollectedLoot);
+		this.CollectedLoot.Connect((player, lootId) => {
+			this.OnPlayerCollectedLoot(player, lootId);
+		});
 	}
 
 	HandlePlayerMap() {
