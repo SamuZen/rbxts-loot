@@ -8,6 +8,7 @@ export class LootInteractable extends Cachable implements ISpriteLoot, IInteract
 	bgLabel: ImageLabel;
 	onCollected: BindableEvent<Callback>;
 	prompt: ProximityPrompt;
+	promptConnection: RBXScriptConnection | undefined;
 
 	constructor() {
 		super();
@@ -29,6 +30,9 @@ export class LootInteractable extends Cachable implements ISpriteLoot, IInteract
 		this.handle.PivotTo(this.defaultCFrame);
 		this.handle.AssemblyLinearVelocity = new Vector3(0, 0, 0);
 		this.handle.CanCollide = false;
+		if (this.promptConnection) {
+			this.promptConnection.Disconnect();
+		}
 	}
 
 	setParent(parent: Instance | undefined): void {
@@ -38,6 +42,11 @@ export class LootInteractable extends Cachable implements ISpriteLoot, IInteract
 	gotten(): void {
 		this.handle.Anchored = false;
 		this.handle.CanCollide = true;
+		this.prompt.Enabled = true;
+
+		this.promptConnection = this.prompt.Triggered.Connect(() => {
+			this.onCollected.Fire();
+		});
 	}
 
 	clear(): void {}
@@ -46,6 +55,7 @@ export class LootInteractable extends Cachable implements ISpriteLoot, IInteract
 
 	setup(lootData: Lootable): void {
 		this.handle.Name = lootData.id;
+		this.iconLabel.Image = lootData.icon;
 	}
 
 	spawn(position: Vector3): void {
@@ -65,7 +75,7 @@ export class LootInteractable extends Cachable implements ISpriteLoot, IInteract
 	}
 
 	touched(): void {
-		this.onCollected.Fire();
+		//this.onCollected.Fire();
 	}
 
 	collected(): void {
@@ -96,6 +106,7 @@ export class LootInteractable extends Cachable implements ISpriteLoot, IInteract
 		prompt.ActionText = "Pickup";
 		prompt.Enabled = false;
 		prompt.Parent = handle;
+		prompt.RequiresLineOfSight = false;
 		prompt.Triggered.Once(() => {
 			this.onCollected.Fire();
 		});
