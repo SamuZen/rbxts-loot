@@ -9,7 +9,7 @@ const localPlayer = Players.LocalPlayer;
 function create(range: number): BasePart {
 	const part = new Instance("Part");
 	part.Name = CollisionGroups.LootCollector;
-	part.Anchored = true;
+	part.Anchored = false;
 	part.CanCollide = false;
 	part.Size = new Vector3(range, range, range);
 	part.Shape = Enum.PartType.Ball;
@@ -24,7 +24,7 @@ function followPlayer(part: BasePart) {
 	RunService.Heartbeat.Connect(() => {
 		if (localPlayer && localPlayer.Character) {
 			part.PivotTo(localPlayer.Character.GetPivot());
-			part.AssemblyAngularVelocity = Vector3.zero;
+			part.AssemblyLinearVelocity = Vector3.zero;
 		}
 	});
 	return;
