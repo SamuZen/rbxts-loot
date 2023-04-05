@@ -5,66 +5,73 @@ import { LootFactory } from "../shared/Loots/LootFactory";
 import Remotes from "../shared/NetRemotes";
 
 const RunService = game.GetService("RunService");
+let lootClientInstance: LootClient | undefined = undefined;
 
-const CreateLoot = Remotes.Client.Get(NetRemoteNames.CreateLoot);
-const CollectedLoot = Remotes.Client.Get(NetRemoteNames.CollectedLoot);
+class LootClient {
+	CreateLoot = Remotes.Client.Get(NetRemoteNames.CreateLoot);
+	CollectedLoot = Remotes.Client.Get(NetRemoteNames.CollectedLoot);
 
-const lootFactory = new LootFactory();
-const createdLoots = new Map<BasePart, LootInstanceData>();
+	lootFactory = new LootFactory();
+	createdLoots = new Map<BasePart, LootInstanceData>();
+
+	constructor(collectorSize: number) {
+		this.initialize();
+	}
+
+	initialize() {
+		const collectorPart = CreateCollectorPart(10);
+		collectorPart.Touched.Connect(this.onCollectorTouched);
+
+		this.CreateLoot.Connect(this.onCreateLoot);
+	}
+
+	onCollectorTouched(part: BasePart) {
+		if (!this.createdLoots.has(part)) return;
+		const localData = this.getLocalDataFromHandle(part);
+		if (localData === undefined) return;
+		localData.loot.touched();
+	}
+
+	onCreateLoot(creationData: LootCreationData) {
+		const loot = this.lootFactory.createLoot(creationData.loot, creationData.position);
+		const lootData: LootInstanceData = {
+			creationData,
+			loot,
+		};
+		this.createdLoots.set(loot.handle, lootData);
+		loot.onCollected.Event.Once(() => {
+			this.collectLoot(lootData);
+		});
+	}
+
+	collectLoot(data: LootInstanceData) {
+		if (data === undefined) {
+			warn("Loot data was undefined");
+			return;
+		}
+
+		task.spawn(() => {
+			data.loot.collected();
+		});
+
+		this.createdLoots.delete(data.loot.handle);
+		this.CollectedLoot.SendToServer(data.creationData.id);
+	}
+
+	getLocalDataFromHandle(handle: BasePart) {
+		const lootData = this.createdLoots.get(handle);
+		if (lootData === undefined) {
+			warn("Loot data was undefined");
+			return;
+		}
+		return lootData;
+	}
+}
 
 export function InitializeLootClient() {
 	assert(RunService.IsClient(), "InitializeLoot() should only be called on the client!");
 
-	const collectorPart = CreateCollectorPart(10);
-	collectorPart.Touched.Connect(OnCollectorTouched);
-
-	CreateLoot.Connect(OnCreateLoot);
-}
-
-function OnCollectorTouched(part: BasePart) {
-	if (!isValidHandle(part)) return;
-	const localData = getLocalDataFromHandle(part);
-	if (localData === undefined) return;
-	localData.loot.touched();
-}
-
-function OnCreateLoot(creationData: LootCreationData) {
-	const loot = lootFactory.createLoot(creationData.loot, creationData.position);
-	const lootData: LootInstanceData = {
-		creationData,
-		loot,
-	};
-	createdLoots.set(loot.handle, lootData);
-	loot.onCollected.Event.Once(() => {
-		CollectLoot(lootData);
-	});
-}
-
-function CollectLoot(data: LootInstanceData) {
-	if (data === undefined) {
-		warn("Loot data was undefined");
-		return;
+	if (lootClientInstance === undefined) {
+		lootClientInstance = new LootClient(10);
 	}
-
-	task.spawn(() => {
-		data.loot.collected();
-	});
-
-	createdLoots.delete(data.loot.handle);
-	CollectedLoot.SendToServer(data.creationData.id);
-}
-
-// Helpers
-
-function getLocalDataFromHandle(handle: BasePart) {
-	const lootData = createdLoots.get(handle);
-	if (lootData === undefined) {
-		warn("Loot data was undefined");
-		return;
-	}
-	return lootData;
-}
-
-function isValidHandle(handle: BasePart) {
-	return createdLoots.has(handle);
 }
