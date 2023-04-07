@@ -107,9 +107,6 @@ export class LootInteractable extends Cachable implements ISpriteLoot, IInteract
 		prompt.Enabled = false;
 		prompt.Parent = handle;
 		prompt.RequiresLineOfSight = false;
-		prompt.Triggered.Once(() => {
-			this.onCollected.Fire();
-		});
 
 		const bilGui = new Instance("BillboardGui");
 		bilGui.Size = new UDim2(3, 0, 3, 0);
