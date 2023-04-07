@@ -6,12 +6,12 @@ const Players = game.GetService("Players");
 
 const localPlayer = Players.LocalPlayer;
 
-function create(range: number): BasePart {
+function create(): BasePart {
 	const part = new Instance("Part");
 	part.Name = CollisionGroups.LootCollector;
 	part.Anchored = false;
 	part.CanCollide = false;
-	part.Size = new Vector3(range, range, range);
+	part.Size = new Vector3(3, 3, 3);
 	part.Shape = Enum.PartType.Ball;
 	part.Transparency = 1;
 	part.Parent = Workspace;
@@ -30,8 +30,8 @@ function followPlayer(part: BasePart) {
 	return;
 }
 
-export function CreateCollectorPart(range: number): BasePart {
-	const collectorPart = create(range);
+export function CreateCollectorPart(): BasePart {
+	const collectorPart = create();
 	followPlayer(collectorPart);
 	return collectorPart;
 }
