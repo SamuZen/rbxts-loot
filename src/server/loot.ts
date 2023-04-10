@@ -1,4 +1,10 @@
-import { LootCollectedAlertData, LootCreationData, Lootable as Lootable } from "../shared/Loot";
+import {
+	LootCollectedSignalData,
+	LootCreationData,
+	LootDespawnSignalData,
+	LootSpawnSignalData,
+	Lootable as Lootable,
+} from "../shared/Loot";
 import { SetCollisionGroups } from "./CollisionGroupHandler";
 import { GenerateUniqueId } from "../shared/UniqueId";
 import { NetRemoteNames } from "../shared/NetRemoteNames";
@@ -21,9 +27,9 @@ class LootServer {
 	CollectedLoot = Remotes.Server.Get(NetRemoteNames.CollectedLoot);
 
 	//server - server
-	LootSpawnedSignal = new Signal<LootCreationData>();
-	LootCollectedSignal = new Signal<LootCollectedAlertData>();
-	LootDespawnedSignal = new Signal<string>();
+	LootSpawnedSignal = new Signal<LootSpawnSignalData>();
+	LootCollectedSignal = new Signal<LootCollectedSignalData>();
+	LootDespawnedSignal = new Signal<LootDespawnSignalData>();
 
 	initialized = false;
 	playerToLootIdMap = new Map<Player, Array<string>>();
@@ -78,7 +84,8 @@ class LootServer {
 	PlayerCollectedLoot(player: Player, lootId: string) {
 		const lootData = this.lootIdToLootDataMap.get(lootId);
 		if (!lootData) {
-			error("Loot does not exist in lootIdToLootDataMap!");
+			warn("Loot does not exist in lootIdToLootDataMap!");
+			return;
 		}
 
 		this.RemovePlayerLoot(player, lootId);
@@ -106,7 +113,7 @@ class LootServer {
 		this.CreateLootEvent.SendToPlayer(player, creationData);
 
 		// alert server
-		this.LootSpawnedSignal.Fire(creationData);
+		this.LootSpawnedSignal.Fire({ creationData, player });
 
 		// despawn the loot after a certain amount of time
 		if (loot.despawnTime !== undefined) {
@@ -114,22 +121,22 @@ class LootServer {
 				this.RemovePlayerLoot(player, lootId);
 				this.DespawnLootEvent.SendToPlayer(player, lootId);
 
-				this.LootDespawnedSignal.Fire(lootId);
+				this.LootDespawnedSignal.Fire({ lootId, player });
 			});
 		}
 	}
 
 	// Callbacks
 
-	OnLootCollected(callback: (data: LootCollectedAlertData) => void) {
+	OnLootCollected(callback: (data: LootCollectedSignalData) => void) {
 		return this.LootCollectedSignal.Connect(callback);
 	}
 
-	onLootSpawned(callback: (data: LootCreationData) => void) {
+	onLootSpawned(callback: (data: LootSpawnSignalData) => void) {
 		return this.LootSpawnedSignal.Connect(callback);
 	}
 
-	OnLootDespawned(callback: (lootId: string) => void) {
+	OnLootDespawned(callback: (lootId: LootDespawnSignalData) => void) {
 		return this.LootDespawnedSignal.Connect(callback);
 	}
 }
@@ -151,7 +158,7 @@ export function CreateLoot(player: Player, loot: Lootable, position: Vector3) {
 
 // server - server
 
-export function OnLootSpawned(callback: (data: LootCreationData) => void) {
+export function OnLootSpawned(callback: (data: LootSpawnSignalData) => void) {
 	assert(RunService.IsServer(), "OnLootSpawned() should only be called on the server!");
 	if (!lootServerInstance) {
 		initializedEvent.Event.Wait();
@@ -160,7 +167,7 @@ export function OnLootSpawned(callback: (data: LootCreationData) => void) {
 	return lootServerInstance.onLootSpawned(callback);
 }
 
-export function OnLootDespawned(callback: (lootId: string) => void) {
+export function OnLootDespawned(callback: (lootId: LootDespawnSignalData) => void) {
 	assert(RunService.IsServer(), "OnLootDespawned() should only be called on the server!");
 	if (!lootServerInstance) {
 		initializedEvent.Event.Wait();
@@ -169,7 +176,7 @@ export function OnLootDespawned(callback: (lootId: string) => void) {
 	return lootServerInstance.OnLootDespawned(callback);
 }
 
-export function OnLootCollected(callback: (data: LootCollectedAlertData) => void) {
+export function OnLootCollected(callback: (data: LootCollectedSignalData) => void) {
 	assert(RunService.IsServer(), "OnLootCollected() should only be called on the server!");
 	if (!lootServerInstance) {
 		initializedEvent.Event.Wait();

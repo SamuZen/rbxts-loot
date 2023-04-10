@@ -14,10 +14,23 @@ export type LootCreationData = {
 	id: string;
 };
 
-export type LootCollectedAlertData = {
+// Signals
+export type LootCollectedSignalData = {
 	player: Player;
 	loot: Lootable;
 };
+
+export type LootDespawnSignalData = {
+	lootId: string;
+	player: Player;
+};
+
+export type LootSpawnSignalData = {
+	creationData: LootCreationData;
+	player: Player;
+};
+
+//
 
 export type LootInstanceData = {
 	loot: ILoot;
