@@ -4,6 +4,8 @@ export type Lootable = {
 	id: string;
 	icon: string;
 	lootType: LootTypes;
+	despawnTime?: number;
+	extraData?: unknown;
 };
 
 export type LootCreationData = {
