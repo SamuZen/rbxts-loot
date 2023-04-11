@@ -16,23 +16,18 @@ export type LootCreationData = {
 
 // Signals server -> server
 export type ServerLootCollectedSignalData = {
-	player?: Player;
+	player: Player;
 	loot: Lootable;
 };
 
 export type ServerLootDespawnSignalData = {
-	player?: Player;
+	player: Player;
 	lootId: string;
 };
 
 export type ServerLootSpawnSignalData = {
-	player?: Player;
+	player: Player;
 	creationData: LootCreationData;
-};
-
-export type ServerLootTouchedSignalData = {
-	player?: Player;
-	loot: Lootable;
 };
 
 // Signals client -> client
