@@ -1,5 +1,12 @@
 import { CreateCollectorPart } from "./CollectorPart";
-import { LootCreationData, LootInstanceData } from "../shared/Loot";
+import {
+	LootCreationData,
+	LootInstanceData,
+	ClientLootCollectedSignalData,
+	ClientLootDespawnSignalData,
+	ClientLootSpawnSignalData,
+	ClientLootTouchedSignalData,
+} from "../shared/Loot";
 import { NetRemoteNames } from "../shared/NetRemoteNames";
 import { LootFactory } from "../shared/Loots/LootFactory";
 import Remotes from "../shared/NetRemotes";
@@ -9,106 +16,163 @@ const RunService = game.GetService("RunService");
 let lootClientInstance: LootClient | undefined = undefined;
 
 class LootClient {
-	CreateLoot = Remotes.Client.Get(NetRemoteNames.CreateLoot);
+	//server - client
+	SpawnLoot = Remotes.Client.Get(NetRemoteNames.CreateLoot);
+	DespawnLoot = Remotes.Client.Get(NetRemoteNames.DespawnLoot);
+
+	//client - server
 	CollectedLoot = Remotes.Client.Get(NetRemoteNames.CollectedLoot);
 
-	signalLootCollected = new Signal<LootInstanceData>();
-	signalLootCreated = new Signal<LootInstanceData>();
+	//client - client
+	LootCollectedSignal = new Signal<LootInstanceData>();
+	LootSpawnedSignal = new Signal<LootInstanceData>();
+	LootDespawnedSignal = new Signal<LootInstanceData>();
+	LootTouchedSignal = new Signal<LootInstanceData>();
 
+	//
 	lootFactory = new LootFactory();
-	createdLoots = new Map<BasePart, LootInstanceData>();
+	instanceDataByHandle = new Map<BasePart, LootInstanceData>();
+	instanceDataById = new Map<string, LootInstanceData>();
 
 	collectorPart: BasePart;
 
 	constructor() {
 		this.collectorPart = CreateCollectorPart();
 		this.collectorPart.Touched.Connect((part: BasePart) => {
-			this.onCollectorTouched(part);
+			this.CollectorTouched(part);
 		});
 
-		this.CreateLoot.Connect((data: LootCreationData) => {
-			this.onCreateLoot(data);
+		this.SpawnLoot.Connect((data: LootCreationData) => {
+			this.CreateLoot(data);
+		});
+
+		this.DespawnLoot.Connect((lootId: string) => {
+			const lootData = this.instanceDataById.get(lootId);
+			if (lootData === undefined) return;
+			this.RemoveLootInstanceData(lootData);
+			this.LootDespawnedSignal.Fire(lootData);
+			lootData.loot.despawn();
 		});
 	}
 
-	setCollectorSize(size: number) {
-		this.collectorPart.Size = new Vector3(size, size, size);
+	// Internal
+
+	AddLootInstanceData(lootData: LootInstanceData) {
+		this.instanceDataByHandle.set(lootData.loot.handle, lootData);
+		this.instanceDataById.set(lootData.creationData.id, lootData);
 	}
 
-	onCollectorTouched(part: BasePart) {
-		if (!this.createdLoots.has(part)) return;
-		const localData = this.getLocalDataFromHandle(part);
-		if (localData === undefined) return;
-		localData.loot.touched();
+	RemoveLootInstanceById(id: string) {
+		const lootData = this.instanceDataById.get(id);
+		if (lootData === undefined) return;
+		this.RemoveLootInstanceData(lootData);
 	}
 
-	onCreateLoot(creationData: LootCreationData) {
+	RemoveLootInstanceData(lootData: LootInstanceData) {
+		this.instanceDataByHandle.delete(lootData.loot.handle);
+		this.instanceDataById.delete(lootData.creationData.id);
+	}
+
+	CreateLoot(creationData: LootCreationData) {
 		const loot = this.lootFactory.createLoot(creationData.loot, creationData.position);
 		const lootData: LootInstanceData = {
 			creationData,
 			loot,
 		};
 
-		this.signalLootCreated.Fire(lootData);
+		this.AddLootInstanceData(lootData);
 
-		this.createdLoots.set(loot.handle, lootData);
 		loot.onCollected.Event.Once(() => {
-			this.collectLoot(lootData);
+			this.CollectLoot(lootData);
 		});
+
+		this.LootSpawnedSignal.Fire(lootData);
 	}
 
-	collectLoot(data: LootInstanceData) {
+	CollectorTouched(handle: BasePart) {
+		if (!this.instanceDataByHandle.has(handle)) return;
+		const localData = this.instanceDataByHandle.get(handle);
+		if (localData === undefined) return;
+		localData.loot.touched();
+
+		this.LootTouchedSignal.Fire(localData);
+	}
+
+	// External
+
+	SetCollectorSize(size: number) {
+		this.collectorPart.Size = new Vector3(size, size, size);
+	}
+
+	// Other
+
+	CollectLoot(data: LootInstanceData) {
 		if (data === undefined) {
 			warn("Loot data was undefined");
 			return;
 		}
 
-		this.signalLootCollected.Fire(data);
+		this.LootCollectedSignal.Fire(data);
 
 		task.spawn(() => {
 			data.loot.collected();
 		});
 
-		this.createdLoots.delete(data.loot.handle);
+		this.instanceDataByHandle.delete(data.loot.handle);
+		this.instanceDataById.delete(data.creationData.id);
+
 		this.CollectedLoot.SendToServer(data.creationData.id);
 	}
 
-	getLocalDataFromHandle(handle: BasePart) {
-		const lootData = this.createdLoots.get(handle);
-		if (lootData === undefined) {
-			warn("Loot data was undefined");
-			return;
-		}
-		return lootData;
+	//Callbacks
+
+	OnLootTouched(callback: (data: LootInstanceData) => void): RBXScriptConnection {
+		return this.LootTouchedSignal.Connect(callback);
 	}
 
-	onLootCollected(callback: (data: LootInstanceData) => void): RBXScriptConnection {
-		return this.signalLootCollected.Connect(callback);
+	OnLootSpawned(callback: (data: LootInstanceData) => void): RBXScriptConnection {
+		return this.LootSpawnedSignal.Connect(callback);
 	}
 
-	onLootCreated(callback: (data: LootInstanceData) => void): RBXScriptConnection {
-		return this.signalLootCreated.Connect(callback);
+	OnLootDespawned(callback: (data: LootInstanceData) => void): RBXScriptConnection {
+		return this.LootDespawnedSignal.Connect(callback);
+	}
+
+	OnLootCollected(callback: (data: LootInstanceData) => void): RBXScriptConnection {
+		return this.LootCollectedSignal.Connect(callback);
 	}
 }
 
-export function InitializeLootClient() {
+export function Initialize() {
 	assert(RunService.IsClient(), "InitializeLoot() should only be called on the client!");
 	if (lootClientInstance === undefined) {
 		lootClientInstance = new LootClient();
 	}
 }
 
-export function onLootCreated(callback: (data: LootInstanceData) => void): RBXScriptConnection {
-	assert(lootClientInstance !== undefined, "InitializeLoot() should be called before onLootCreated()!");
-	return lootClientInstance.onLootCreated(callback);
-}
-
-export function onLootCollected(callback: (data: LootInstanceData) => void): RBXScriptConnection {
-	assert(lootClientInstance !== undefined, "InitializeLoot() should be called before onLootCollected()!");
-	return lootClientInstance.onLootCollected(callback);
-}
-
-export function setPlayerCollectorSize(size: number) {
+export function SetCollectorSize(size: number) {
 	assert(lootClientInstance !== undefined, "InitializeLoot() should be called before setPlayerCollectorSize()!");
-	lootClientInstance.setCollectorSize(size);
+	lootClientInstance.SetCollectorSize(size);
+}
+
+// client - client
+
+export function OnLootSpawned(callback: (data: LootInstanceData) => void): RBXScriptConnection {
+	assert(lootClientInstance !== undefined, "InitializeLoot() should be called before onLootCreated()!");
+	return lootClientInstance.OnLootSpawned(callback);
+}
+
+export function OnLootDespawned(callback: (data: LootInstanceData) => void): RBXScriptConnection {
+	assert(lootClientInstance !== undefined, "InitializeLoot() should be called before onLootCreated()!");
+	return lootClientInstance.OnLootDespawned(callback);
+}
+
+export function OnLootCollected(callback: (data: LootInstanceData) => void): RBXScriptConnection {
+	assert(lootClientInstance !== undefined, "InitializeLoot() should be called before onLootCollected()!");
+	return lootClientInstance.OnLootCollected(callback);
+}
+
+export function OnLootTouched(callback: (data: LootInstanceData) => void): RBXScriptConnection {
+	assert(lootClientInstance !== undefined, "InitializeLoot() should be called before onLootCollected()!");
+	return lootClientInstance.OnLootTouched(callback);
 }

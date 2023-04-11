@@ -14,20 +14,43 @@ export type LootCreationData = {
 	id: string;
 };
 
-// Signals
-export type LootCollectedSignalData = {
-	player: Player;
+// Signals server -> server
+export type ServerLootCollectedSignalData = {
+	player?: Player;
 	loot: Lootable;
 };
 
-export type LootDespawnSignalData = {
+export type ServerLootDespawnSignalData = {
+	player?: Player;
 	lootId: string;
-	player: Player;
 };
 
-export type LootSpawnSignalData = {
+export type ServerLootSpawnSignalData = {
+	player?: Player;
 	creationData: LootCreationData;
-	player: Player;
+};
+
+export type ServerLootTouchedSignalData = {
+	player?: Player;
+	loot: Lootable;
+};
+
+// Signals client -> client
+
+export type ClientLootCollectedSignalData = {
+	lootInstanceData: LootInstanceData;
+};
+
+export type ClientLootDespawnSignalData = {
+	lootInstanceData: LootInstanceData;
+};
+
+export type ClientLootSpawnSignalData = {
+	lootInstanceData: LootInstanceData;
+};
+
+export type ClientLootTouchedSignalData = {
+	lootInstanceData: LootInstanceData;
 };
 
 //
